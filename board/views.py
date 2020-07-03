@@ -6,7 +6,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from .utils import api_response
+from .utils import api_response, binary_search
 from .serializers import BoardServerViewSerializer
 from .models import LeaderBoard
 
@@ -57,15 +57,14 @@ class BoardServerView(APIView):
                    f'( SELECT id, client_num, score FROM board_leaderboard ORDER BY create_time DESC ) ' \
                    f'AS b GROUP BY b.client_num ORDER BY b.score DESC'
             queryset = LeaderBoard.objects.raw(_sql)
-            for order, query in enumerate(queryset, start=1):
-                if client_num == query.client_num:
-                    res_msg = {
-                        'order': order,
-                        'client': f'客户端{query.client_num}',
-                        'score': query.score
-                    }
-                    search_client_msg = res_msg
-                    break
+            order, query = binary_search(queryset, client_num)  # 使用二分查找
+            if order != -1:
+                res_msg = {
+                    'order': order,
+                    'client': f'客户端{query.client_num}',
+                    'score': query.score
+                }
+                search_client_msg = res_msg
             else:
                 res_list_data = api_response(errcode=10003, data=f'找不到客户端{client_num}')
                 return Response(data=res_list_data)
